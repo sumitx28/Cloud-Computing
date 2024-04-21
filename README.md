@@ -146,3 +146,5 @@ The role of Container 2 is to listen on a defined endpoint, calculate the total 
 3. Calculate the total product.
 4. Return the total in JSON format or an error if the file is not a proper CSV.
 
+## Author
+- Sumit Savaliya (sumit.savaliya@dal.ca)
