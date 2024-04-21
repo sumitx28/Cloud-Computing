@@ -1,0 +1,50 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: DOCKER-IMAGE-BUILD
+    args:
+      - 'build'
+      - '--no-cache' 
+      - '-t'
+      - 'us-central1-docker.pkg.dev/kubernetes-assignment-417720/cloud-ar-container1/container1-image:latest' 
+      - './'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: DOCKER-PUSH-IMAGE
+    waitFor: ['DOCKER-IMAGE-BUILD']
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/kubernetes-assignment-417720/cloud-ar-container1/container1-image:latest' 
+
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: KUBERNETES-DEPLOY-STAGE
+    waitFor: ['DOCKER-PUSH-IMAGE']
+    env:
+      - 'CLOUDSDK_CONTAINER_CLUSTER=kubernetes-csci5709-cluster'
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+    args:
+      - 'apply'
+      - '-f'
+      - './container1-deploy.yaml'
+
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: KUBERNETES-RESTART-PODS
+    waitFor: ['KUBERNETES-DEPLOY-STAGE']
+    env:
+      - 'CLOUDSDK_CONTAINER_CLUSTER=kubernetes-csci5709-cluster'
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+    args:
+      - 'rollout'
+      - 'restart'
+      - 'deployment'
+      - 'container1-pod'
+
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: KUBERNETES-NETWORK-SERVICE-STAGE
+    waitFor: ['KUBERNETES-RESTART-PODS']
+    env:
+      - 'CLOUDSDK_CONTAINER_CLUSTER=kubernetes-csci5709-cluster'
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+    args:
+      - 'apply'
+      - '-f'
+      - './container1-network-service.yaml'

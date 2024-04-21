@@ -1,0 +1,36 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: DOCKER-IMAGE-BUILD
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/kubernetes-assignment-417720/cloud-ar-container2/container2-image'
+      - './'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: DOCKER-PUSH-IMAGE
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/kubernetes-assignment-417720/cloud-ar-container2/container2-image'
+
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: KUBERNETES-DEPLOY-STAGE
+    env:
+      - 'CLOUDSDK_CONTAINER_CLUSTER=kubernetes-csci5709-cluster'
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+    args:
+      - 'apply'
+      - '-f'
+      - './container2-deploy.yaml'
+
+  - name: 'gcr.io/cloud-builders/kubectl'
+    id: KUBERNETES-RESTART-PODS
+    waitFor: ['KUBERNETES-DEPLOY-STAGE']
+    env:
+      - 'CLOUDSDK_CONTAINER_CLUSTER=kubernetes-csci5709-cluster'
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+    args:
+      - 'rollout'
+      - 'restart'
+      - 'deployment'
+      - 'container2-pod'

@@ -1,0 +1,26 @@
+networks:
+  sumitx8-private-network:
+    name: sumitx29-private-networks
+
+services:
+  sumit_cloud_cont_1:
+    image: sumitx28/container_1
+    container_name: 'sumit_cloud_cont_1'
+    ports:
+      - '6000:6000'
+    volumes:
+      - .:/host_volume
+    networks:
+      - sumitx8-private-network
+    depends_on:
+      - sumit_cloud_cont_2
+  
+  sumit_cloud_cont_2:
+    image: sumitx28/container_2
+    container_name: 'sumit_cloud_cont_2'
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/host_volume
+    networks:
+      - sumitx8-private-network

@@ -1,0 +1,114 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Hash choice",
+  "States": {
+    "Hash choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.action",
+          "StringEquals": "bcrypt",
+          "Next": "Bcrypt Invoke"
+        },
+        {
+          "Variable": "$.action",
+          "StringEquals": "md5",
+          "Next": "Md5 Invoke"
+        },
+        {
+          "Variable": "$.action",
+          "StringEquals": "sha256",
+          "Next": "Sha256 Invoke"
+        }
+      ]
+    },
+    "Bcrypt Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "arn:aws:lambda:us-east-1:992382484559:function:bcrypt-lambda:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Result Choice"
+    },
+    "Md5 Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "arn:aws:lambda:us-east-1:992382484559:function:md5-lambda:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Result Choice"
+    },
+    "Result Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.statusCode",
+          "NumericEquals": 200,
+          "Next": "Pass State"
+        }
+      ],
+      "Default": "Fail"
+    },
+    "Pass State": {
+      "Type": "Pass",
+      "End": true
+    },
+    "Fail": {
+      "Type": "Fail",
+      "ErrorPath": "$.error"
+    },
+    "Sha256 Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "arn:aws:lambda:us-east-1:992382484559:function:sha256-lambda:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Result Choice"
+    }
+  }
+}

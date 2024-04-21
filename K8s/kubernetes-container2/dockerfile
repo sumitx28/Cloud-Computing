@@ -1,0 +1,14 @@
+FROM node:hydrogen-alpine3.19
+
+COPY ./package.json .
+
+RUN pwd
+
+RUN npm install
+
+COPY ./index.js .
+
+EXPOSE 3000
+
+ENTRYPOINT [ "npm", "start" ]
+

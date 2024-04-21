@@ -1,0 +1,22 @@
+{
+  "name": "cloud-backend",
+  "version": "1.0.0",
+  "description": "csci5309 term assignment backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "PORT=8080 node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1586.0",
+    "axios": "^1.6.8",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.1",
+    "jimp": "^0.22.12",
+    "mysql": "^2.18.1",
+    "sharp": "^0.33.3"
+  }
+}

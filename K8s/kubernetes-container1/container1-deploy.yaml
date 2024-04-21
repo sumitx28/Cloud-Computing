@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: container1-pod
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pod-container1-label
+
+  template:
+    metadata:
+      labels:
+        app: pod-container1-label
+
+    spec:
+      containers:
+      - name: container1
+        image: 'us-central1-docker.pkg.dev/kubernetes-assignment-417720/cloud-ar-container1/container1-image:latest'
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 6000
+        volumeMounts:
+          - name: storage-volume
+            mountPath: /sumit_PV_dir
+
+      volumes:
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: pvc-volume

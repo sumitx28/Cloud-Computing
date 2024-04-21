@@ -1,0 +1,207 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  PDFParserLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: PDFParserLambdaFunction
+      MemorySize: 1024
+      Timeout: 20
+      Tracing: Active
+      PackageType: Image
+      Architectures:
+        - arm64
+      ImageUri: 992382484559.dkr.ecr.us-east-1.amazonaws.com/pdf-parser-image:latest
+      Events:
+        LambdaAPIPOSTparsepdf:
+          Type: Api
+          Properties:
+            Path: /parse-pdf
+            Method: POST
+            RestApiId: !Ref LambdaAPI
+      Role: "arn:aws:iam::992382484559:role/LabRole"
+
+  PDFParserLambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: PDFParserLambdaFunction
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PDFParserLambdaFunction}
+
+  LambdaAPI:
+    Type: AWS::Serverless::Api
+    DependsOn: PDFParserLambdaFunction
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: LambdaAPI
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /parse-pdf:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PDFParserLambdaFunction.Arn}/invocations
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        MaxAge: 5
+
+  MyDBInstance:
+    Type: AWS::RDS::DBInstance
+    DependsOn: LambdaAPI
+    Properties:
+      AllocatedStorage: 20
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      DBInstanceClass: db.t3.micro
+      DBInstanceIdentifier: mydbinstance
+      Engine: mysql
+      EngineVersion: '5.7'
+      MasterUsername: admin
+      MasterUserPassword: password
+      MultiAZ: false
+      StorageType: gp2
+      DBName: mydatabase
+      PubliclyAccessible: true
+
+  PDFParserBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LambdaAPI
+    Properties:
+      BucketName: storage-bucket-b00955671
+
+  PdfParserSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: pdf-parser-sns
+      TopicName: pdf-parser-sns
+      Subscription:
+        - Endpoint: savaliyasumit11@gmail.com
+          Protocol: email
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - PDFParserLambdaFunction
+      - PDFParserLambdaFunctionLogGroup
+      - LambdaAPI
+      - MyDBInstance
+      - PDFParserBucket
+      - PdfParserSNS
+    Properties:
+      ImageId: ami-080e1f13689e07408
+      InstanceType: t2.micro
+      KeyName: backend-cloud
+      SecurityGroupIds:
+        - sg-0ccb5e0d64b6dc248
+      SubnetId: subnet-07fc8e623513e0294
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+
+          # Clone Backend
+          sudo git clone https://github.com/sumitx28/cloud-backend.git /home/ec2-user/nodejs-project
+
+          # Navigate to the project directory
+          cd /home/ec2-user/nodejs-project
+
+          # Update
+          sudo apt update
+
+          # install nodejs
+          sudo apt -y install nodejs
+
+          # install npm
+          sudo apt -y install npm
+
+          # install modules
+          sudo npm install
+          
+          # install AWS CLI
+          sudo apt -y install awscli
+          
+          # add tokens 
+          sudo echo "REGION=us-east-1" >> /home/ec2-user/nodejs-project/.env
+          sudo echo "S3_BUCKET_NAME=storage-bucket-b00955671" >> /home/ec2-user/nodejs-project/.env
+          sudo echo "SNS_TOPIC_ARN=arn:aws:sns:us-east-1:992382484559:pdf-parser-sns" >> /home/ec2-user/nodejs-project/.env
+          sudo echo "PORT=80" >> /home/ec2-user/nodejs-project/.env
+          sudo echo "RDS_HOST=mydbinstance.c1yw48momjk6.us-east-1.rds.amazonaws.com" >> /home/ec2-user/nodejs-project/.env
+          sudo echo "RDS_USER=admin" >> /home/ec2-user/nodejs-project/.env
+          sudo echo "RDS_PASSWORD=password" >> /home/ec2-user/nodejs-project/.env
+          
+          source /home/ec2-user/nodejs-project/.env   
+          
+          aws configure set aws_access_key_id $ACCESS_KEY
+          aws configure set aws_secret_access_key $SECRET_ACCESS_KEY
+          aws configure set aws_session_token $SESSION_TOKEN
+          aws configure set region $REGION
+
+          sudo LAMBDA_URL=$(aws cloudformation describe-stacks --stack-name TermAssignment --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayEndpoint`].OutputValue' --output text) node index.js
+
+      Tags:
+        - Key: Name
+          Value: BackendInstance
+  
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      UnhealthyThresholdCount: 2
+      VpcId: vpc-044f2c0566fe5d11a
+      Targets:
+        - Id: !Ref EC2Instance
+          Port: 80
+    
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - subnet-07fc8e623513e0294
+        - subnet-0d4b117ee9ff8298d
+      SecurityGroups:
+        - sg-0ccb5e0d64b6dc248
+      Scheme: internet-facing
+      Tags:
+        - Key: Name
+          Value: MyLoadBalancer
+
+Outputs:
+  ApiGatewayEndpoint:
+    Value: !Sub "https://${LambdaAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod/parse-pdf"
+  DBInstanceEndpoint:
+    Value: !GetAtt MyDBInstance.Endpoint.Address
+  SnsTopicArn:
+    Value: !Ref PdfParserSNS
+  InstanceId:
+    Description: "Instance ID of the created EC2 instance"
+    Value: !Ref EC2Instance
+  LoadBalancerPublicIp:
+    Description: "Public IP of the Load Balancer"
+    Value: !GetAtt LoadBalancer.DNSName

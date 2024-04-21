@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: container2-pod
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: conainter2-pod-label
+
+  template:
+    metadata:
+      labels:
+        app: conainter2-pod-label
+
+    spec:
+      containers:
+      - name: container2
+        image: "us-central1-docker.pkg.dev/kubernetes-assignment-417720/cloud-ar-container2/container2-image"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+          - name: storage-volume
+            mountPath: /sumit_PV_dir
+
+      volumes:
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: pvc-volume
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: container2-service
+
+spec:
+  selector:
+    app: conainter2-pod-label
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer
